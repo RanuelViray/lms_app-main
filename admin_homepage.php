@@ -1,3 +1,8 @@
+<?php
+require_once('classes/database.php');
+$con = new database();
+$authors = $con->getAllAuthors(); // This should return an array of authors from your table
+?>
 <!doctype html>
 <html lang="en">
 <head>
@@ -11,16 +16,19 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
           <a class="navbar-brand" href="#">Library Management System (Admin)</a>
-          <a class="btn btn-outline-light ms-auto" href="add_authors.html">Add Authors</a>
-          <a class="btn btn-outline-light ms-2" href="add_genres.html">Add Genres</a>
-          <a class="btn btn-outline-light ms-2" href="add_books.html">Add Books</a>
+          <a class="btn btn-outline-light ms-auto" href="add_authors.php">Add Authors</a>
+          <a class="btn btn-outline-light ms-2" href="add_genres.php">Add Genres</a>
+          <a class="btn btn-outline-light ms-2" href="add_books.php">Add Books</a>
+          <div class="d-flex ms-2">
+      <a href="logout.php" class="btn btn-outline-light">Logout</a>
+    </div>
           <div class="dropdown ms-2">
             <button class="btn btn-outline-light dropdown-toggle" type="button" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="bi bi-person-circle"></i> <!-- Bootstrap icon -->
             </button>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
               <li>
-                  <a class="dropdown-item" href="profile.html">
+                  <a class="dropdown-item" href="profile.php">
                       <i class="bi bi-person-circle me-2"></i> See Profile Information
                   </a>
                 </li>
@@ -112,42 +120,40 @@
                 <th>Author ID</th>
                 <th>First Name</th>
                 <th>Last Name</th>
-                <th>Birth Year</th>
+                <th>Birth Date</th>
                 <th>Nationality</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>1</td>
-                <td>Mark</td>
-                <td>Twain</td>
-                <td>1835</td>
-                <td>American</td>
-                <td>
-                  <button type="submit" class="btn btn-warning btn-sm">
-                    <i class="bi bi-pencil-square"></i>
-                  </button>
-                  <button type="submit" name="delete" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this author?')">
-                    <i class="bi bi-x-square"></i>
-                  </button>
-                </td>
-              </tr>
-              <tr>
-                <td>2</td>
-                <td>Jane</td>
-                <td>Austen</td>
-                <td>1775</td>
-                <td>British</td>
-                <td>
-                  <button type="submit" class="btn btn-warning btn-sm">
-                    <i class="bi bi-pencil-square"></i>
-                  </button>
-                  <button type="submit" name="delete" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this author?')">
-                    <i class="bi bi-x-square"></i>
-                  </button>
-                </td>
-              </tr>
+              <?php if (!empty($authors)): ?>
+                <?php foreach ($authors as $author): ?>
+                  <tr>
+                    <td><?= htmlspecialchars($author['author_id']) ?></td>
+                    <td><?= htmlspecialchars($author['author_FN']) ?></td>
+                    <td><?= htmlspecialchars($author['author_LN']) ?></td>
+                    <td>
+                      <?php 
+                        // Show full birth date for clarity
+                        echo htmlspecialchars(date('Y-m-d', strtotime($author['author_birthday'])));
+                      ?>
+                    </td>
+                    <td><?= htmlspecialchars($author['author_nat']) ?></td>
+                    <td>
+                      <button type="submit" class="btn btn-warning btn-sm">
+                        <i class="bi bi-pencil-square"></i>
+                      </button>
+                      <button type="submit" name="delete" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this author?')">
+                        <i class="bi bi-x-square"></i>
+                      </button>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+              <?php else: ?>
+                <tr>
+                  <td colspan="6">No authors found.</td>
+                </tr>
+              <?php endif; ?>
             </tbody>
           </table>
         </div>

@@ -1,73 +1,115 @@
 <?php
 
-class database{
+class database {
+    public $conn;
 
-    function opencon(): PDO{
+    public function __construct() {
+        $this->conn = new mysqli('localhost', 'root', '', 'lms_app'); // Change credentials as needed
+        if ($this->conn->connect_error) {
+            die("Connection failed: " . $this->conn->connect_error);
+        }
+        $this->createAuthorTableIfNotExists();
+    }
+
+    private function createAuthorTableIfNotExists() {
+        $sql = "CREATE TABLE IF NOT EXISTS author (
+            author_id INT AUTO_INCREMENT PRIMARY KEY,
+            author_FN VARCHAR(100) NOT NULL,
+            author_LN VARCHAR(100) NOT NULL,
+            author_birthday DATE NOT NULL,
+            author_nat VARCHAR(100) NOT NULL
+        )";
+        $this->conn->query($sql);
+    }
+
+    function opencon(): PDO {
         return new PDO(dsn: 'mysql:host=localhost;dbname=lms_app',
         username: 'root',
         password: '');   
     }
 
-function signupUser($firstname, $lastname, $birthday, $email, $sex, $phone, $username, $password, $profile_picture_path){
+    function signupUser($firstname, $lastname, $birthday, $email, $sex, $phone, $username, $password, $profile_picture_path) {
+        $con = $this->opencon();
 
-$con = $this->opencon();
+        try {
+            $con->beginTransaction();
 
- try {
-    $con->beginTransaction();
+            // Insert into Users table
+            $stmt = $con->prepare("INSERT INTO Users (user_FN, user_LN, user_birthday, user_sex, user_email, user_phone, user_username, user_password) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$firstname, $lastname, $birthday, $sex, $email, $phone, $username, $password]);
 
-    // Insert into Users table
+            // Get the newly inserted user_id
+            $userId = $con->lastInsertID();
 
-    $stmt = $con->prepare("INSERT INTO Users (user_FN, user_LN, user_birthday, user_sex, user_email, user_phone, user_username, user_password) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->execute([$firstname, $lastname, $birthday, $sex, $email, $phone, $username, $password]);
+            // Insert into user_pictures table
+            $stmt = $con->prepare("INSERT INTO users_pictures (user_id, user_pic_url) VALUES (?, ?)");
+            $stmt->execute([$userId, $profile_picture_path]);
 
-    // Get the newly inserted user_id
+            $con->commit();
+            return $userId; // return user_id for further use (like inserting address)
+        } catch (PDOException $e) {
+            $con->rollBack();
+            return false;
+        }
+    }
 
-    $userId = $con->lastInsertID();
+    function insertAddress($userID, $street, $barangay, $city, $province) {
+        $con = $this->opencon();
+        try {
+            $con->beginTransaction();
 
-    // Insert into user_pictures table
+            // Insert into address table
+            $stmt = $con->prepare("INSERT INTO Address (ba_street, ba_barangay, ba_city, ba_province) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$street, $barangay, $city, $province]);
 
-    $stmt = $con->prepare("INSERT INTO users_pictures (user_id,
-    user_pic_url) VALUES (?, ?)");
-    $stmt->execute([$userId, $profile_picture_path]);
+            // Get the newly inserted address_id
+            $addressId = $con->lastInsertID();
 
-    $con->commit();
-    return $userId; // return user_id for further use (like inserting address)
-} catch (PDOException $e) {
-    $con->rollBack();
-    return false;
-}
-}
+            // Link User and Address into Users_Address table
+            $stmt = $con->prepare("INSERT INTO Users_Address (user_id, address_id) VALUES (?, ?)");
+            $stmt->execute([$userID, $addressId]);
 
-function insertAddress($userID, $street, $barangay, $city, $province)
-{
-    $con = $this->opencon();
-    try {
-        $con->beginTransaction();
+            $con->commit();
+            return true;
+        } catch (PDOException $e) {
+            $con->rollBack();
+            return false;
+        }
+    }
 
-        // Insert into address table
-        $stmt = $con->prepare("INSERT INTO Address (ba_street, ba_barangay, ba_city, ba_province) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$street, $barangay, $city, $province]);
+    function loginUser($email, $password) {
+        $con = $this->opencon();
+        $stmt = $con->prepare("SELECT * FROM users WHERE user_email = ?");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($user && password_verify($password, $user['user_password'])) {
+            return $user;
+        } else {
+            return false;
+        }
+    }
 
-        // Get the newly inserted address_id
-        $addressId = $con->lastInsertID();
+    public function addAuthor($firstname, $lastname, $birthdate, $nationality) {
+        $con = $this->opencon();
+        try {
+            $stmt = $con->prepare("INSERT INTO authors (author_FN, author_LN, author_birthday, author_nat) VALUES (?, ?, ?, ?)");
+            return $stmt->execute([$firstname, $lastname, $birthdate, $nationality]);
+        } catch (PDOException $e) {
+            return false;
+        }
+    }
 
-        // Link User and Address into Users_Address table
-        $stmt = $con->prepare("INSERT INTO Users_Address (user_id, address_id) VALUES (?, ?)");
-        $stmt->execute([$userID, $addressId]);
-
-        $con->commit();
-        return true;
-    } catch (PDOException $e) {
-        $con->rollBack();
-        return false;
+    public function getAllAuthors() {
+        $authors = [];
+        $sql = "SELECT author_id, author_FN, author_LN, author_birthday, author_nat FROM authors";
+        $result = $this->conn->query($sql);
+        if ($result && $result->num_rows > 0) {
+            while ($row = $result->fetch_assoc()) {
+                $authors[] = $row;
+            }
+        }
+        return $authors;
     }
 }
-
-
-
-
-
-}
-
 
 ?>
